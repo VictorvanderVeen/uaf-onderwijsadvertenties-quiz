@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAF Onderwijsadvertenties Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --uaf-paars: #6D008B;
+      --uaf-lime: #AFCA0B;
+      --uaf-roze: #EE7BAE;
+      --uaf-lichtblauw: #78B7E5;
+      --uaf-groen: #009741;
+      --uaf-oranje: #F8AC00;
+      --uaf-zwart: #1A1A1A;
+      --uaf-wit: #FFFFFF;
+      --uaf-lichtgrijs: #F5F5F5;
+      --transition-speed: 300ms;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :root { --transition-speed: 0ms; }
+    }
+
+    html, body { height: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      color: var(--uaf-zwart);
+      background: var(--uaf-wit);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .progress-bar-container {
+      position: sticky; top: 0; width: 100%;
+      height: 6px; background: var(--uaf-lichtgrijs); z-index: 10;
+    }
+    .progress-bar-fill {
+      height: 100%; background: var(--uaf-paars);
+      transition: width var(--transition-speed) ease-out; width: 0%;
+    }
+
+    .screen-container {
+      flex: 1; display: flex;
+      align-items: center; justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .screen {
+      max-width: 640px; width: 100%;
+      opacity: 0; transform: translateY(20px);
+      visibility: hidden; position: absolute;
+      transition: opacity var(--transition-speed) ease-out,
+                  transform var(--transition-speed) ease-out;
+    }
+    .screen.active {
+      opacity: 1; transform: translateY(0);
+      visibility: visible; position: relative;
+    }
+
+    .intro-title {
+      font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 700;
+      color: var(--uaf-paars); margin-bottom: 1.25rem; line-height: 1.3;
+    }
+    .intro-text {
+      font-size: clamp(1rem, 2.5vw, 1.2rem); line-height: 1.7;
+      margin-bottom: 2rem; color: var(--uaf-zwart);
+    }
+
+    .question-number {
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--uaf-paars); opacity: 0.7; margin-bottom: 0.5rem;
+    }
+    .question-text {
+      font-size: clamp(1.3rem, 3.5vw, 1.75rem); font-weight: 700;
+      color: var(--uaf-paars); line-height: 1.4; margin-bottom: 1.75rem;
+    }
+
+    .answers { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
+
+    .answer-btn {
+      display: flex; align-items: center; gap: 0.75rem;
+      width: 100%; min-height: 64px; padding: 1rem 1.25rem;
+      border: 2px solid var(--uaf-lichtgrijs); border-radius: 12px;
+      background: var(--uaf-lichtgrijs); font-family: 'Nunito', sans-serif;
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem); font-weight: 600;
+      color: var(--uaf-zwart); cursor: pointer; text-align: left;
+      transition: border-color 200ms ease, background 200ms ease; line-height: 1.4;
+    }
+    .answer-btn:hover:not(:disabled) { border-color: var(--uaf-paars); }
+    .answer-btn:focus-visible { outline: 3px solid var(--uaf-paars); outline-offset: 2px; }
+    .answer-btn:disabled { cursor: default; }
+
+    .answer-label {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--uaf-wit); font-weight: 700;
+      font-size: 0.9rem; color: var(--uaf-paars); flex-shrink: 0;
+    }
+
+    .answer-btn.correct { border-color: var(--uaf-groen); background: #e8f5e9; }
+    .answer-btn.correct .answer-label { background: var(--uaf-groen); color: var(--uaf-wit); }
+    .answer-btn.incorrect { border-color: var(--uaf-roze); background: #fce4ec; }
+    .answer-btn.incorrect .answer-label { background: var(--uaf-roze); color: var(--uaf-wit); }
+    .answer-btn.reveal-correct { border-color: var(--uaf-groen); background: #e8f5e9; }
+    .answer-btn.reveal-correct .answer-label { background: var(--uaf-groen); color: var(--uaf-wit); }
+
+    .explanation {
+      background: var(--uaf-lichtgrijs); border-left: 4px solid var(--uaf-paars);
+      border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+      font-size: 0.95rem; line-height: 1.6;
+      opacity: 0; max-height: 0; overflow: hidden;
+      transition: opacity var(--transition-speed) ease-out,
+                  max-height var(--transition-speed) ease-out;
+    }
+    .explanation.visible { opacity: 1; max-height: 300px; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 1rem 2rem; border: none; border-radius: 12px;
+      background: var(--uaf-paars); color: var(--uaf-wit);
+      font-family: 'Nunito', sans-serif; font-size: 1.1rem; font-weight: 700;
+      cursor: pointer; transition: opacity 200ms ease, transform 100ms ease;
+      text-decoration: none;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:focus-visible { outline: 3px solid var(--uaf-paars); outline-offset: 3px; }
+
+    .btn-cta { background: var(--uaf-oranje); font-size: 1.2rem; padding: 1.1rem 2.5rem; }
+    .btn-cta:focus-visible { outline-color: var(--uaf-oranje); }
+
+    .btn-next { opacity: 0; visibility: hidden; transition: opacity var(--transition-speed) ease-out; }
+    .btn-next.visible { opacity: 1; visibility: visible; }
+
+    .score-display {
+      font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 800;
+      color: var(--uaf-paars); margin-bottom: 1rem;
+    }
+    .end-message {
+      font-size: clamp(1rem, 2.5vw, 1.15rem); line-height: 1.7;
+      margin-bottom: 2rem; color: var(--uaf-zwart);
+    }
+
+    .keyboard-hint { margin-top: 1.5rem; font-size: 0.8rem; color: #999; }
+    .keyboard-hint kbd {
+      display: inline-block; padding: 2px 6px;
+      border: 1px solid #ccc; border-radius: 4px;
+      background: var(--uaf-lichtgrijs); font-family: 'Nunito', sans-serif; font-size: 0.75rem;
+    }
+    @media (pointer: coarse) { .keyboard-hint { display: none; } }
+  </style>
+</head>
+<body>
+
+  <!-- Voortgangsbalk -->
+  <div class="progress-bar-container" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="5" aria-label="Voortgang quiz">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <main class="screen-container">
+    <!-- Intro -->
+    <section class="screen active" id="screen-intro" aria-label="Introductie">
+      <h1 class="intro-title">Hoeveel weet jij over de uitdagingen van vluchteling-studenten?</h1>
+      <p class="intro-text">
+        In Nederland willen duizenden vluchtelingen studeren, maar ze lopen tegen allerlei belemmeringen aan. Weet jij welke dat zijn? Test je kennis in 5 vragen.
+      </p>
+      <button class="btn-primary" id="btnStart" autofocus>
+        Start de quiz <span aria-hidden="true">→</span>
+      </button>
+    </section>
+
+    <!-- Eindscherm -->
+    <section class="screen" id="screen-end" aria-label="Resultaat">
+      <div class="score-display" id="scoreDisplay"></div>
+      <p class="end-message" id="endMessage"></p>
+      <a class="btn-primary btn-cta" id="ctaLink">
+        <span id="ctaLabel"></span> <span aria-hidden="true">→</span>
+      </a>
+    </section>
+  </main>
+
+  <script>
+    // === CONFIGURATIE — Pas deze waarden aan ===
+
+    // VUL HIER DE EIND-URL IN — wordt automatisch voorzien van UTM-parameters
+    const EIND_URL = 'https://www.uaf.nl/PLACEHOLDER-PAGINA/';
+
+    // Label van de eind-CTA-knop
+    const CTA_LABEL = 'Lees verder';
+
+    // === QUIZ DATA ===
+    const quizData = [
+      {
+        vraag: 'Wat is een belangrijke belemmering voor vluchtelingen om te starten met een studie in Nederland?',
+        antwoorden: [
+          'Het leren van de Nederlandse taal kost veel tijd',
+          'Het vinden van vervoer naar school',
+          'Het ontbreken van een heldere studiewens'
+        ],
+        correct: 0,
+        uitleg: 'Klopt. De Nederlandse taal leren tot een niveau waarop je een opleiding kunt volgen kost gemiddeld 1 tot 3 jaar. Het UAF helpt met taaltrajecten zodat studeren mogelijk wordt.'
+      },
+      {
+        vraag: 'Waarom belandt een deel van de vluchtelingen later dan gewenst in het onderwijs?',
+        antwoorden: [
+          'Zij moeten eerst verplicht vrijwilligerswerk doen',
+          'Zij mogen niet studeren tot zij 21 jaar zijn',
+          'Zij zitten ondanks een verblijfsvergunning vast in een opvanglocatie omdat er geen woningen beschikbaar zijn'
+        ],
+        correct: 2,
+        uitleg: 'Klopt. Door de wooncrisis blijven veel statushouders maandenlang in opvanglocaties wachten, terwijl ze formeel mogen studeren. Kostbare tijd gaat zo verloren.'
+      },
+      {
+        vraag: 'Waarom kan het voor vluchtelingen lastig zijn om direct een opleiding te volgen die bij hen past?',
+        antwoorden: [
+          'Scholen hebben te weinig docenten',
+          'Hun vooropleiding sluit soms niet aan of wordt niet erkend',
+          'Ze mogen pas instromen vanaf september'
+        ],
+        correct: 1,
+        uitleg: 'Klopt. Diploma\'s en kwalificaties uit het herkomstland worden niet altijd erkend in Nederland. Het UAF helpt bij diploma-waardering en het vinden van een passend traject.'
+      },
+      {
+        vraag: 'Waarom hebben sommige vluchteling-studenten moeite om hun opleiding zonder onderbrekingen te blijven volgen?',
+        antwoorden: [
+          'Omdat er in Nederland veel vakanties zijn',
+          'Omdat hun opvangplek en verblijfsstatus onzeker zijn, waardoor verhuizen of wachten op procedures hun studieplanning kan verstoren',
+          'Omdat het aantal contacturen met docenten beperkt is'
+        ],
+        correct: 1,
+        uitleg: 'Klopt. Onzekerheid over verblijf en huisvesting zorgt voor stress en gedwongen verhuizingen — funest voor een studieplanning.'
+      },
+      {
+        vraag: 'Wat maakt studeren lastig voor vluchteling-studenten in een COA-opvanglocatie?',
+        antwoorden: [
+          'Er is te weinig rust en privacy om goed te kunnen studeren',
+          'Er is geen internet beschikbaar',
+          'Er zijn allerlei andere activiteiten waar ze verplicht aan mee moeten doen'
+        ],
+        correct: 0,
+        uitleg: 'Klopt. In een COA-locatie deel je vaak een kamer met meerdere mensen, met weinig privacy en concentratie. Studeren wordt zo bijna onmogelijk.'
+      }
+    ];
+
+    // === STATE ===
+    let currentQuestion = -1; // -1 = intro
+    let score = 0;
+    let answered = false;
+    const totalQuestions = quizData.length;
+
+    // === DOM REFERENTIES ===
+    const progressFill = document.getElementById('progressFill');
+    const progressBar = document.querySelector('.progress-bar-container');
+    const container = document.querySelector('.screen-container');
+    const endScreen = document.getElementById('screen-end');
+
+    // === HULPFUNCTIES ===
+
+    /** Stuur resize-bericht naar parent (iframe-resizer compatible) */
+    function notifyResize() {
+      requestAnimationFrame(() => {
+        window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+      });
+    }
+
+    /** DataLayer push voor GTM */
+    function trackEvent(event, data) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event, ...data });
+    }
+
+    /** Update de voortgangsbalk */
+    function updateProgress(step) {
+      progressFill.style.width = (step / totalQuestions) * 100 + '%';
+      progressBar.setAttribute('aria-valuenow', step);
+    }
+
+    /** Verberg alle schermen, toon het opgegeven scherm */
+    function showScreen(screenEl) {
+      container.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      requestAnimationFrame(() => {
+        screenEl.classList.add('active');
+        notifyResize();
+      });
+    }
+
+    /** Bouw een vraagscherm als DOM-element */
+    function buildQuestionScreen(index) {
+      const q = quizData[index];
+      const labels = ['A', 'B', 'C'];
+      const section = document.createElement('section');
+      section.className = 'screen';
+      section.id = 'screen-q' + index;
+      section.setAttribute('aria-label', 'Vraag ' + (index + 1));
+      section.innerHTML = `
+        <p class="question-number">Vraag ${index + 1} van ${totalQuestions}</p>
+        <h2 class="question-text">${q.vraag}</h2>
+        <div class="answers" role="group" aria-label="Antwoorden">
+          ${q.antwoorden.map((a, i) => `
+            <button class="answer-btn" data-index="${i}" aria-label="Antwoord ${labels[i]}: ${a}">
+              <span class="answer-label" aria-hidden="true">${labels[i]}</span>
+              <span>${a}</span>
+            </button>`).join('')}
+        </div>
+        <div class="explanation" id="explanation-${index}" aria-live="polite"></div>
+        <button class="btn-primary btn-next" id="btnNext-${index}">
+          ${index < totalQuestions - 1 ? 'Volgende vraag' : 'Bekijk resultaat'} <span aria-hidden="true">→</span>
+        </button>
+        <p class="keyboard-hint">Tip: gebruik <kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> om te antwoorden, <kbd>Enter</kbd> voor volgende</p>`;
+      return section;
+    }
+
+    // === QUIZ LOGICA ===
+
+    function startQuiz() {
+      trackEvent('quiz_start', {});
+      currentQuestion = 0;
+      score = 0;
+      answered = false;
+      // Genereer alle vraagschermen
+      quizData.forEach((_, i) => container.insertBefore(buildQuestionScreen(i), endScreen));
+      updateProgress(0);
+      goToQuestion(0);
+    }
+
+    function goToQuestion(index) {
+      currentQuestion = index;
+      answered = false;
+      updateProgress(index);
+      const screen = document.getElementById('screen-q' + index);
+      showScreen(screen);
+      setTimeout(() => {
+        const firstBtn = screen.querySelector('.answer-btn');
+        if (firstBtn) firstBtn.focus();
+      }, 350);
+    }
+
+    function handleAnswer(questionIndex, answerIndex) {
+      if (answered) return;
+      answered = true;
+      const q = quizData[questionIndex];
+      const isCorrect = answerIndex === q.correct;
+      if (isCorrect) score++;
+
+      trackEvent('quiz_question_answered', { question_index: questionIndex, correct: isCorrect });
+
+      const screen = document.getElementById('screen-q' + questionIndex);
+      const buttons = screen.querySelectorAll('.answer-btn');
+      buttons.forEach(btn => btn.disabled = true);
+
+      if (isCorrect) {
+        buttons[answerIndex].classList.add('correct');
+      } else {
+        buttons[answerIndex].classList.add('incorrect');
+        buttons[q.correct].classList.add('reveal-correct');
+      }
+
+      // Uitleg tonen
+      const explanation = document.getElementById('explanation-' + questionIndex);
+      explanation.textContent = q.uitleg;
+      requestAnimationFrame(() => explanation.classList.add('visible'));
+
+      // "Volgende" knop zichtbaar maken
+      const nextBtn = document.getElementById('btnNext-' + questionIndex);
+      requestAnimationFrame(() => { nextBtn.classList.add('visible'); notifyResize(); });
+    }
+
+    function showEndScreen() {
+      trackEvent('quiz_complete', { score });
+      updateProgress(totalQuestions);
+
+      document.getElementById('scoreDisplay').textContent = `Je had ${score} van de ${totalQuestions} goed!`;
+
+      const endMessage = document.getElementById('endMessage');
+      if (score <= 1) {
+        endMessage.textContent = 'Misschien wist je het nog niet, maar vluchteling-studenten in Nederland lopen tegen flinke obstakels aan. Fijn dat je nu meer weet — want begrip is de eerste stap naar verandering.';
+      } else if (score <= 3) {
+        endMessage.textContent = 'Je weet al aardig wat over de uitdagingen waar vluchteling-studenten mee te maken hebben. Toch zijn er nog verrassende feiten. Hoe meer mensen hiervan weten, hoe beter we samen kunnen helpen.';
+      } else {
+        endMessage.textContent = 'Sterk! Je bent goed op de hoogte van de belemmeringen die vluchteling-studenten ervaren. Jouw bewustzijn maakt het verschil — deel je kennis en help mee om kansen gelijk te maken.';
+      }
+
+      // CTA opzetten
+      const ctaLink = document.getElementById('ctaLink');
+      document.getElementById('ctaLabel').textContent = CTA_LABEL;
+      const url = new URL(EIND_URL);
+      url.searchParams.set('utm_source', 'quiz');
+      url.searchParams.set('utm_medium', 'onsite');
+      url.searchParams.set('utm_campaign', 'onderwijsadvertenties');
+      ctaLink.href = url.toString();
+      ctaLink.target = '_top';
+      ctaLink.setAttribute('aria-label', CTA_LABEL);
+
+      showScreen(endScreen);
+      setTimeout(() => ctaLink.focus(), 350);
+    }
+
+    // === EVENT LISTENERS ===
+
+    // Start-knop
+    document.getElementById('btnStart').addEventListener('click', () => {
+      showScreen(document.createElement('div'));
+      startQuiz();
+    });
+
+    // Delegeer klikken op antwoorden en volgende-knoppen
+    container.addEventListener('click', (e) => {
+      const answerBtn = e.target.closest('.answer-btn');
+      if (answerBtn && !answerBtn.disabled) {
+        handleAnswer(currentQuestion, parseInt(answerBtn.dataset.index));
+        return;
+      }
+      const nextBtn = e.target.closest('.btn-next');
+      if (nextBtn && nextBtn.classList.contains('visible')) {
+        if (currentQuestion < totalQuestions - 1) goToQuestion(currentQuestion + 1);
+        else showEndScreen();
+      }
+    });
+
+    // Toetsenbordnavigatie
+    document.addEventListener('keydown', (e) => {
+      if (currentQuestion < 0 || currentQuestion >= totalQuestions) return;
+      const screen = document.getElementById('screen-q' + currentQuestion);
+      if (!screen || !screen.classList.contains('active')) return;
+
+      const keyMap = { 'a': 0, 'b': 1, 'c': 2, '1': 0, '2': 1, '3': 2 };
+      const key = e.key.toLowerCase();
+
+      if (key in keyMap && !answered) {
+        e.preventDefault();
+        handleAnswer(currentQuestion, keyMap[key]);
+        return;
+      }
+      if (e.key === 'Enter' && answered) {
+        const nextBtn = document.getElementById('btnNext-' + currentQuestion);
+        if (nextBtn && e.target !== nextBtn) {
+          e.preventDefault();
+          if (currentQuestion < totalQuestions - 1) goToQuestion(currentQuestion + 1);
+          else showEndScreen();
+        }
+      }
+    });
+
+    // Initiële resize melding
+    notifyResize();
+    window.addEventListener('resize', notifyResize);
+  </script>
+</body>
+</html>
